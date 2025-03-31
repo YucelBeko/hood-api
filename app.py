@@ -5,9 +5,9 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# ✅ Model, scaler, ve sütun sırasını yükle
+# ✅ Model, Scaler ve Feature Sırası Yükleniyor
 model = joblib.load("model.pkl")
-expected_columns = joblib.load("expected_columns.pkl")  # 🔥 burası yeni
+
 try:
     scaler = joblib.load("scaler.pkl")
     USE_SCALER = True
@@ -15,40 +15,43 @@ except:
     scaler = None
     USE_SCALER = False
 
+try:
+    feature_names = joblib.load("feature.pkl")  # list of encoded feature names
+except:
+    feature_names = None
+    raise ValueError("feature.pkl bulunamadı. Gerekli sütun isimleri olmadan tahmin yapılamaz.")
+
 @app.route('/')
 def home():
     return "✅ Hood FDE Predictor API aktif."
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    data = request.json.get("features", None)
+    if data is None or not isinstance(data, dict):
+        return jsonify({"error": "Veri formatı hatalı. 'features' sözlüğü gerekiyor."}), 400
+
     try:
-        incoming_data = request.json.get("features", None)
-        if incoming_data is None:
-            return jsonify({"error": "Veri formatı hatalı. 'features' dictionary gerekiyor."}), 400
-
         # 🔄 Dict → DataFrame
-        df_input = pd.DataFrame([incoming_data])
+        df_input = pd.DataFrame([data])  # tek satır
+        df_input_encoded = pd.get_dummies(df_input)
 
-        # 🧠 One-hot encoding
-        df_encoded = pd.get_dummies(df_input)
+        # 🧱 Eksik sütunları tamamla
+        for col in feature_names:
+            if col not in df_input_encoded.columns:
+                df_input_encoded[col] = 0
+        df_input_encoded = df_input_encoded[feature_names]  # doğru sıraya sok
 
-        # ⛑️ Eksik sütunları 0 ile doldur
-        for col in expected_columns:
-            if col not in df_encoded.columns:
-                df_encoded[col] = 0
-
-        # ✅ Sıralama
-        df_encoded = df_encoded[expected_columns]
-
-        # 🧪 Scaler varsa uygula
-        X = df_encoded.values
+        # 🔄 Standardizasyon (varsa)
+        X = df_input_encoded.values
         if USE_SCALER:
             X = scaler.transform(X)
 
-        # 🔮 Tahmin
+        # 🔍 Tahmin
         prediction = model.predict(X)[0]
+
         return jsonify({"prediction": round(float(prediction), 4)})
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
