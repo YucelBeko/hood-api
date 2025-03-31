@@ -16,7 +16,7 @@ except:
     USE_SCALER = False
 
 try:
-    feature_names = joblib.load("feature.pkl")  # list of encoded feature names
+    feature_names = joblib.load("expected_columns.pkl")  # list of encoded feature names
 except:
     feature_names = None
     raise ValueError("feature.pkl bulunamadı. Gerekli sütun isimleri olmadan tahmin yapılamaz.")
