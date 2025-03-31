@@ -5,7 +5,7 @@ import numpy as np
 app = Flask(__name__)
 
 # ✅ Model ve Scaler yükleniyor
-model = joblib.load("hood_FDE_Predictor.pkl")
+model = joblib.load("model.pkl")
 
 try:
     scaler = joblib.load("scaler.pkl")
